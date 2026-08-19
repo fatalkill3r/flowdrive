@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
       searchTimer = setTimeout(async () => {
         if (search.value.trim().length < 2) { results.innerHTML = ''; return; }
         try {
-          const data = await requestJson(`/sharing/users/?q=${encodeURIComponent(search.value)}`);
+          const data = await requestJson(`${results.dataset.searchUrl}?q=${encodeURIComponent(search.value)}`);
           results.innerHTML = data.users.map(user => `<button type="button" data-id="${user.id}" data-name="${escapeText(user.name)}"><span class="avatar">${escapeText(user.initials)}</span><span><b>${escapeText(user.name)}</b><small>${escapeText(user.email || '')}</small></span></button>`).join('') || '<small>No users found</small>';
           results.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
             userId.value = button.dataset.id;
@@ -65,6 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => openShare(dialogUrl), 250);
       } catch (error) { toast(error.message, true); }
     });
+
+    document.querySelectorAll('.remove-share-form').forEach(form => form.addEventListener('submit', async event => {
+      event.preventDefault();
+      try {
+        const data = await requestJson(form.action, {method: 'POST', body: new FormData(form), headers: {'X-CSRFToken': decodeURIComponent(cookie('csrftoken')), 'X-Requested-With': 'XMLHttpRequest'}});
+        toast(data.message);
+        await openShare(dialogUrl);
+      } catch (error) { toast(error.message, true); }
+    }));
 
     const toggle = document.getElementById('publicAccessToggle');
     const settings = document.getElementById('linkSettingsForm');

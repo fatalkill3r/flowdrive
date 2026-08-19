@@ -9,13 +9,14 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from apps.activity.models import Activity
 from .forms import FolderForm, UploadForm
 from .models import File, Folder, Favorite,FileVersion
 from .services.storage import QuotaExceeded, StorageError, delete_file as adjust_usage, open_file, save_file, usage_summary
 from .services.file_operations import rename as rename_service, move as move_service, copy_file, copy_folder, restore as restore_service, permanent_delete, soft_delete, log
 from .services.metadata import category, unique_name
-from .services.preview import preview_kind, text_content, csv_rows
+from .services.preview import PreviewError, preview_kind, text_content, csv_rows, spreadsheet_sheets, document_content
 from .services.versioning import replace_current,restore_version
 from apps.sharing.services.permissions import can_view,can_preview,can_download,can_edit,can_upload_to_folder,within_same_shared_tree,permission_for
 logger = logging.getLogger("filebox")
@@ -94,6 +95,8 @@ def download(request, file_uuid):
 def details(request, file_uuid):
     item = get_object_or_404(File.objects.active().select_related("owner", "folder"), uuid=file_uuid)
     if not can_view(request.user,item): raise Http404
+    is_partial = request.GET.get("partial") == "1" or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    if not is_partial:return redirect("files:preview",item.uuid)
     activities=Activity.objects.filter(user=request.user,object_uuid=item.uuid)[:20]
     from apps.sharing.models import SharePermission,ShareLink
     shares=SharePermission.objects.filter(file=item).select_related("shared_with") if item.owner_id==request.user.id else SharePermission.objects.none()
@@ -235,6 +238,7 @@ def preview(request,file_uuid):
     return render(request,"files/preview.html",{"item":item,"kind":preview_kind(item),"stats":usage_summary(request.user)})
 
 @login_required
+@xframe_options_sameorigin
 def preview_content(request,file_uuid):
     item=get_object_or_404(File.objects.active(),uuid=file_uuid)
     if not can_preview(request.user,item):raise Http404
@@ -242,8 +246,12 @@ def preview_content(request,file_uuid):
     if kind in ("image","pdf","audio","video"):
         try:return FileResponse(open_file(item),content_type=item.mime_type)
         except OSError:return HttpResponse(status=404)
-    if kind=="csv": return render(request,"files/csv_preview.html",{"rows":csv_rows(item)})
-    if kind in ("json","text"): return render(request,"files/text_preview.html",{"content":text_content(item)})
+    try:
+        if kind=="csv": return render(request,"files/csv_preview.html",{"rows":csv_rows(item)})
+        if kind=="spreadsheet":return render(request,"files/spreadsheet_preview.html",{"sheets":spreadsheet_sheets(item)})
+        if kind=="document":return render(request,"files/text_preview.html",{"content":document_content(item),"document":True})
+        if kind in ("json","text"): return render(request,"files/text_preview.html",{"content":text_content(item)})
+    except PreviewError as exc:return render(request,"files/preview_error.html",{"message":str(exc)},status=422)
     return HttpResponse(status=415)
 
 @login_required

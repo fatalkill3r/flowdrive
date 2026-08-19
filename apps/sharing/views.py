@@ -45,7 +45,9 @@ def update_permission(request,share_uuid):
 @login_required
 @require_POST
 def remove_access(request,share_uuid):
-    share=get_object_or_404(SharePermission,uuid=share_uuid,shared_by=request.user); remove_share(request.user,share); messages.success(request,"Access removed"); return redirect(request.POST.get("next") or "sharing:by_me")
+    share=get_object_or_404(SharePermission,uuid=share_uuid,shared_by=request.user); remove_share(request.user,share)
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest": return JsonResponse({"ok":True,"message":"Access removed"})
+    messages.success(request,"Access removed"); return redirect(request.POST.get("next") or "sharing:by_me")
 @login_required
 def shared_with_me(request):
     shares=SharePermission.objects.filter(shared_with=request.user).select_related("shared_by","file","file__folder","folder","folder__parent")

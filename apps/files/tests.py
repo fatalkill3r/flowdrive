@@ -1,4 +1,4 @@
-import hashlib, tempfile
+import hashlib, io, tempfile
 from pathlib import Path
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -42,3 +42,17 @@ class FileManagementTests(TestCase):
         self.alice.profile.storage_quota=3; self.alice.profile.save(); self.client.force_login(self.alice)
         response=self.client.post(reverse("files:upload"), {"files":SimpleUploadedFile("large.txt",b"1234")})
         self.assertEqual(response.status_code,400); self.assertFalse(File.objects.exists())
+    def test_code_and_csv_preview(self):
+        self.client.force_login(self.alice)
+        for name,content,expected in (("script.py",b"print('hello')",b"print(&#x27;hello&#x27;)"),("deploy.sh",b"#!/bin/sh\necho ready",b"echo ready"),("data.csv",b"name,value\nalpha,42",b"alpha")):
+            self.client.post(reverse("files:upload"),{"files":SimpleUploadedFile(name,content)})
+            item=File.objects.get(display_name=name);response=self.client.get(reverse("files:preview_content",args=[item.uuid]));self.assertEqual(response.status_code,200);self.assertIn(expected,response.content)
+    def test_xlsx_and_docx_preview(self):
+        from openpyxl import Workbook
+        from docx import Document
+        self.client.force_login(self.alice)
+        workbook=Workbook();workbook.active.title="Metrics";workbook.active.append(["Name","Value"]);workbook.active.append(["Revenue",42]);xlsx=io.BytesIO();workbook.save(xlsx)
+        document=Document();document.add_heading("Project brief",0);document.add_paragraph("FlowDrive document preview");docx=io.BytesIO();document.save(docx)
+        for name,content,expected in (("report.xlsx",xlsx.getvalue(),b"Revenue"),("brief.docx",docx.getvalue(),b"FlowDrive document preview")):
+            self.client.post(reverse("files:upload"),{"files":SimpleUploadedFile(name,content)})
+            item=File.objects.get(display_name=name);response=self.client.get(reverse("files:preview_content",args=[item.uuid]));self.assertEqual(response.status_code,200);self.assertIn(expected,response.content)

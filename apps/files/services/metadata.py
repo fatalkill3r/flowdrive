@@ -1,5 +1,5 @@
 import os
-DOCUMENTS={"pdf","doc","docx","xls","xlsx","ppt","pptx","txt","csv","md","json","xml","log"}
+DOCUMENTS={"pdf","doc","docx","xls","xlsx","ppt","pptx","txt","csv","md","json","xml","log","sh","py"}
 IMAGES={"jpg","jpeg","png","gif","webp"}; VIDEOS={"mp4","webm"}; AUDIO={"mp3","wav","ogg","m4a"}; ARCHIVES={"zip","rar","7z","tar","gz"}
 def category(extension):
     ext=extension.lower()

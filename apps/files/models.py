@@ -58,7 +58,7 @@ class File(models.Model):
         if ext in ("mp3", "wav", "ogg"): return "file-earmark-music"
         if ext in ("mp4", "mov", "webm"): return "file-earmark-play"
         if ext in ("zip", "rar", "7z", "tar", "gz"): return "file-earmark-zip"
-        if ext in ("py", "js", "html", "css", "json"): return "file-earmark-code"
+        if ext in ("py", "sh", "js", "html", "css", "json"): return "file-earmark-code"
         return "file-earmark"
 
 class FileVersion(models.Model):

@@ -4,6 +4,7 @@ from django.db.models import F
 from django.http import FileResponse,Http404
 from django.shortcuts import get_object_or_404,render,redirect
 from django.utils import timezone
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from apps.files.models import File,Folder
 from apps.files.services.preview import preview_kind
 from apps.files.services.storage import open_file
@@ -37,6 +38,7 @@ def public_item(request,token,folder_uuid=None):
             node=node.parent
         if not contained:raise Http404
     return render(request,"sharing/public_folder.html",{"link":link,"root":root,"folder":folder,"folders":folder.children.active(),"files":folder.files.active()})
+@xframe_options_sameorigin
 def public_file(request,token,file_uuid,download=False):
     link=_link(token)
     if not link or not _unlocked(request,link):raise Http404

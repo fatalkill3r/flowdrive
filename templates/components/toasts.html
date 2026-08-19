@@ -1,1 +1,18 @@
-<div class="toast-container position-fixed top-0 end-0 p-3">{% for message in messages %}<div class="toast show toast-{{ message.tags }}" role="alert"><div class="toast-body"><i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% else %}bi-exclamation-circle-fill{% endif %}"></i><span>{{ message }}</span><button class="btn-close ms-auto" data-bs-dismiss="toast"></button></div></div>{% endfor %}<div class="toast" id="liveToast"><div class="toast-body"><i class="bi bi-info-circle-fill"></i><span id="toastText"></span><button class="btn-close ms-auto" data-bs-dismiss="toast"></button></div></div></div>
+<div class="toast-container flow-toast-container" aria-live="polite" aria-atomic="true">
+  {% for message in messages %}
+    <div class="toast show flow-toast toast-{{ message.tags|default:'info' }}" role="status">
+      <div class="toast-body">
+        <span class="toast-icon" aria-hidden="true"><i class="bi {% if message.tags == 'success' %}bi-check-circle-fill{% elif message.tags == 'error' %}bi-exclamation-circle-fill{% elif message.tags == 'warning' %}bi-exclamation-triangle-fill{% else %}bi-info-circle-fill{% endif %}"></i></span>
+        <span class="toast-message">{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Dismiss notification"></button>
+      </div>
+    </div>
+  {% endfor %}
+  <div class="toast flow-toast toast-info" id="liveToast" role="status">
+    <div class="toast-body">
+      <span class="toast-icon" aria-hidden="true"><i class="bi bi-info-circle-fill"></i></span>
+      <span class="toast-message" id="toastText"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Dismiss notification"></button>
+    </div>
+  </div>
+</div>
