@@ -1,0 +1,1 @@
+{% extends 'base/base.html' %}{% block content %}<div class="coming-soon"><span><i class="bi bi-clock-history"></i></span><h1>Viewing Version {{ version.version_number }}</h1><p>Preview is not available for this historical file type.</p><a class="btn btn-primary" href="{% url 'files:download_version' version.uuid %}">Download version</a></div>{% endblock %}
