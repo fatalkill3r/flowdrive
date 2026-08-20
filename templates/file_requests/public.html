@@ -1,1 +1,39 @@
-{% extends 'sharing/public_base.html' %}{% block title %}{{ obj.title }} · FlowDrive{% endblock %}{% block content %}<div class="public-card request-public"><span class="public-lock"><i class="bi bi-cloud-arrow-up"></i></span><h1>{{ obj.title }}</h1><p>{{ obj.description }}</p><small>Requested by {{ obj.created_by.get_full_name|default:obj.created_by.username }}</small>{% if error %}<div class="form-error mt-3">{{ error }}</div>{% endif %}<form method="post" enctype="multipart/form-data">{% csrf_token %}<label class="drop-zone mt-4"><input type="file" name="files" multiple hidden onchange="this.closest('label').querySelector('b').textContent=this.files.length+' file(s) selected'"><i class="bi bi-cloud-arrow-up"></i><b>Drop files here or click to browse</b><span>Multiple files are supported</span></label><label class="form-label mt-3">Your name<input class="form-control" name="uploader_name" required></label><label class="form-label">Your email (optional)<input class="form-control" type="email" name="uploader_email"></label><button class="btn btn-primary w-100 mt-2">Upload files</button></form><p class="privacy-note"><i class="bi bi-shield-check"></i> You cannot see existing folder contents or other uploads.</p></div>{% endblock %}
+{% extends 'sharing/public_base.html' %}
+{% block title %}{{ obj.title }} · FlowDrive{% endblock %}
+{% block content %}
+<div class="public-card request-public">
+  <span class="public-lock"><i class="bi bi-cloud-arrow-up"></i></span>
+  <h1>{{ obj.title }}</h1><p>{{ obj.description }}</p>
+  <small>Requested by {{ obj.created_by.get_full_name|default:obj.created_by.username }}</small>
+  {% if error %}<div class="form-error mt-3">{{ error }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data" id="requestUploadForm">
+    {% csrf_token %}
+    <label class="drop-zone mt-4" id="requestDropZone">
+      <input type="file" name="files" id="requestFiles" multiple hidden>
+      <i class="bi bi-cloud-arrow-up"></i><b id="requestFileLabel">Drop files here or click to browse</b>
+      <span>Multiple files are supported · 10 GB maximum per file</span>
+    </label>
+    <div class="request-upload-progress" id="requestUploadProgress" hidden>
+      <div class="request-progress-head"><b id="requestProgressFiles">Preparing upload</b><strong id="requestProgressPercent">0%</strong></div>
+      <div class="progress"><div class="progress-bar" id="requestProgressBar" style="width:0%"></div></div>
+      <div class="request-progress-stats"><span id="requestProgressBytes">0 bytes</span><span id="requestProgressSpeed"></span><span id="requestProgressEta">Estimating time…</span></div>
+    </div>
+    <label class="form-label mt-3">Your name<input class="form-control" name="uploader_name" required></label>
+    <label class="form-label">Your email (optional)<input class="form-control" type="email" name="uploader_email"></label>
+    <button class="btn btn-primary w-100 mt-2" id="requestUploadButton">Upload files</button>
+  </form>
+  <p class="privacy-note"><i class="bi bi-shield-check"></i> You cannot see existing folder contents or other uploads.</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(()=>{const form=document.getElementById('requestUploadForm'),input=document.getElementById('requestFiles'),zone=document.getElementById('requestDropZone'),label=document.getElementById('requestFileLabel'),box=document.getElementById('requestUploadProgress'),bar=document.getElementById('requestProgressBar'),percent=document.getElementById('requestProgressPercent'),bytes=document.getElementById('requestProgressBytes'),speedText=document.getElementById('requestProgressSpeed'),eta=document.getElementById('requestProgressEta'),filesText=document.getElementById('requestProgressFiles'),button=document.getElementById('requestUploadButton');if(!form)return;
+const size=n=>{if(!n)return'0 bytes';const u=['bytes','KB','MB','GB'];const i=Math.min(Math.floor(Math.log(n)/Math.log(1024)),3);return`${(n/1024**i).toFixed(i?1:0)} ${u[i]}`};
+const showFiles=()=>{const total=[...input.files].reduce((sum,file)=>sum+file.size,0);label.textContent=input.files.length?`${input.files.length} file${input.files.length===1?'':'s'} selected · ${size(total)}`:'Drop files here or click to browse'};input.addEventListener('change',showFiles);
+['dragenter','dragover'].forEach(type=>zone.addEventListener(type,event=>{event.preventDefault();zone.classList.add('dragging')}));['dragleave','drop'].forEach(type=>zone.addEventListener(type,event=>{event.preventDefault();zone.classList.remove('dragging')}));zone.addEventListener('drop',event=>{if(event.dataTransfer.files.length){input.files=event.dataTransfer.files;showFiles()}});
+form.addEventListener('submit',event=>{event.preventDefault();if(!form.reportValidity())return;const data=new FormData(form),xhr=new XMLHttpRequest();xhr.open('POST',form.action||location.href);box.hidden=false;zone.classList.add('uploading');button.disabled=true;button.innerHTML='<span class="spinner-border spinner-border-sm"></span> Uploading 0%';filesText.textContent=`Uploading ${input.files.length} file${input.files.length===1?'':'s'}`;let previous=performance.now(),previousBytes=0,rate=0;
+xhr.upload.onprogress=e=>{if(!e.lengthComputable)return;const now=performance.now(),elapsed=(now-previous)/1000,instant=elapsed>0?(e.loaded-previousBytes)/elapsed:0;if(instant>0)rate=rate?rate*.7+instant*.3:instant;previous=now;previousBytes=e.loaded;const value=Math.min(100,Math.round(e.loaded/e.total*100));bar.style.width=value+'%';percent.textContent=value+'%';bytes.textContent=`${size(e.loaded)} of ${size(e.total)}`;speedText.textContent=rate?size(rate)+'/s':'';const remaining=rate?(e.total-e.loaded)/rate:Infinity;eta.textContent=Number.isFinite(remaining)?(remaining<2?'Almost done':remaining<60?Math.ceil(remaining)+' sec remaining':Math.ceil(remaining/60)+' min remaining'):'Estimating time…';button.innerHTML=`<span class="spinner-border spinner-border-sm"></span> Uploading ${value}%`;if(value===100){eta.textContent='Processing files…';button.innerHTML='<span class="spinner-border spinner-border-sm"></span> Processing…'}};
+xhr.onload=()=>{document.open();document.write(xhr.responseText);document.close()};xhr.onerror=()=>{zone.classList.remove('uploading');button.disabled=false;button.textContent='Try again';eta.textContent='Upload interrupted. Check your connection and retry.'};xhr.send(data)});
+})();
+</script>
+{% endblock %}
